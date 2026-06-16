@@ -1,0 +1,33 @@
+[
+    {
+    "id": "t-shirt",
+    "name": "T 恤",
+    "lineart": "./assets/garments/t-shirt/lineart.svg",
+    "thumbnail": "./assets/garments/t-shirt/lineart.svg",
+    "regions": [
+      { "id": "tshirt-body", "name": "衣身", "mask": "./assets/garments/t-shirt/mask-body.svg" },
+      { "id": "tshirt-sleeves", "name": "袖子", "mask": "./assets/garments/t-shirt/mask-sleeves.svg" }
+    ]
+  },
+  {
+    "id": "baidie",
+    "name": "百蝶",
+    "lineart": "./assets/garments/baidie/lineart.svg",
+    "thumbnail": "./assets/garments/baidie/lineart.svg",
+    "regions": [
+      { "id": "baidie-zuoxiu1", "name": "袖子左1", "mask": "./assets/garments/baidie/mask-zuoxiu1.svg" },
+      { "id": "baidie-zuoxiu2", "name": "袖子左2", "mask": "./assets/garments/baidie/mask-zuoxiu2.svg" },
+      { "id": "baidie-youxiu1", "name": "袖子右1", "mask": "./assets/garments/baidie/mask-youxiu1.svg" },
+      { "id": "baidie-youxiu2", "name": "袖子右2", "mask": "./assets/garments/baidie/mask-youxiu2.svg" },
+      { "id": "baidie-shangyi1", "name": "上衣左", "mask": "./assets/garments/baidie/mask-zuoyi.svg" },
+      { "id": "baidie-shangyi2", "name": "上衣右", "mask": "./assets/garments/baidie/mask-youyi.svg" },
+      { "id": "baidie-zuoling1", "name": "左领1", "mask": "./assets/garments/baidie/mask-zuoling1.svg" },
+      { "id": "baidie-zuoling2", "name": "左领2", "mask": "./assets/garments/baidie/mask-zuoling2.svg" },
+      { "id": "baidie-youling1", "name": "右领1", "mask": "./assets/garments/baidie/mask-youling1.svg" },
+      { "id": "baidie-youling2", "name": "右领2", "mask": "./assets/garments/baidie/mask-youling2.svg" },
+      { "id": "baidie-yibai1", "name": "衣摆1", "mask": "./assets/garments/baidie/mask-bai1.svg" },
+      { "id": "baidie-yibai2", "name": "衣摆2", "mask": "./assets/garments/baidie/mask-bai2.svg"}
+
+    ]
+  }
+]

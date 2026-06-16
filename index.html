@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>虚拟服装面料设计工具</title>
+    <link rel="stylesheet" href="./css/style.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <section class="panel">
+          <div class="panel-title">服装模板</div>
+          <div id="garmentList" class="tile-grid" aria-label="服装模板"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">填充区域</div>
+          <div id="regionList" class="segmented" aria-label="填充区域"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">预设面料</div>
+          <div id="fabricList" class="fabric-grid" aria-label="预设面料"></div>
+          <label class="upload-control">
+            <input id="fabricUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+            <span>上传本地面料</span>
+          </label>
+        </section>
+      </aside>
+
+      <section class="stage-wrap" aria-label="设计画布">
+        <div class="topbar">
+          <div>
+            <h1>面料设计</h1>
+            <p id="statusText">拖动画布调整面料位置，滚轮或滑块缩放。</p>
+          </div>
+          <div class="actions">
+            <button id="resetBtn" type="button">重置</button>
+            <button id="downloadBtn" class="primary" type="button">导出 PNG</button>
+          </div>
+        </div>
+
+        <div class="canvas-frame">
+          <canvas id="designCanvas" width="900" height="1100"></canvas>
+        </div>
+
+        <div class="controls" aria-label="面料变换">
+          <label>
+            <span>缩放</span>
+            <input id="scaleInput" type="range" min="0.25" max="4" step="0.01">
+          </label>
+          <label>
+            <span>旋转</span>
+            <input id="rotationInput" type="range" min="-180" max="180" step="1">
+          </label>
+          <label>
+            <span>横移</span>
+            <input id="offsetXInput" type="range" min="-500" max="500" step="1">
+          </label>
+          <label>
+            <span>纵移</span>
+            <input id="offsetYInput" type="range" min="-500" max="500" step="1">
+          </label>
+        </div>
+      </section>
+
+      <aside class="sidebar rightbar">
+        <section class="panel">
+          <div class="panel-title">当前方案</div>
+          <dl class="meta-list">
+            <div><dt>模板</dt><dd id="metaGarment">-</dd></div>
+            <div><dt>区域</dt><dd id="metaRegion">-</dd></div>
+            <div><dt>面料</dt><dd id="metaFabric">-</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">本地方案</div>
+          <div class="save-row">
+            <input id="schemeName" type="text" maxlength="30" placeholder="方案名称">
+            <button id="saveSchemeBtn" type="button">保存</button>
+          </div>
+          <div id="schemeList" class="scheme-list"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
