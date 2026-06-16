@@ -1,14 +1,4 @@
 [
-    {
-    "id": "t-shirt",
-    "name": "T 恤",
-    "lineart": "./assets/garments/t-shirt/lineart.svg",
-    "thumbnail": "./assets/garments/t-shirt/lineart.svg",
-    "regions": [
-      { "id": "tshirt-body", "name": "衣身", "mask": "./assets/garments/t-shirt/mask-body.svg" },
-      { "id": "tshirt-sleeves", "name": "袖子", "mask": "./assets/garments/t-shirt/mask-sleeves.svg" }
-    ]
-  },
   {
     "id": "baidie",
     "name": "百蝶",

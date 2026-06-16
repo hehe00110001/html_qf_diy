@@ -10,22 +10,33 @@
     <main class="app-shell">
       <aside class="sidebar">
         <section class="panel">
-          <div class="panel-title">服装模板</div>
+          <div class="panel-title"><span>服装模板</span><button class="panel-toggle" type="button" aria-label="收起服装模板" aria-expanded="true">⌃</button></div>
+          <div class="panel-body">
           <div id="garmentList" class="tile-grid" aria-label="服装模板"></div>
+          </div>
         </section>
 
         <section class="panel">
-          <div class="panel-title">填充区域</div>
+          <div class="panel-title"><span>填充区域</span><button class="panel-toggle" type="button" aria-label="收起填充区域" aria-expanded="true">⌃</button></div>
+          <div class="panel-body">
           <div id="regionList" class="segmented" aria-label="填充区域"></div>
+          </div>
         </section>
 
         <section class="panel">
-          <div class="panel-title">预设面料</div>
+          <div class="panel-title"><span>面料库</span><button class="panel-toggle" type="button" aria-label="收起面料库" aria-expanded="true">⌃</button></div>
+          <div class="panel-body">
+          <div id="fabricGroupTabs" class="group-tabs" aria-label="面料分组"></div>
+          <div class="color-row">
+            <input id="solidColorInput" type="color" value="#2f7d4a" aria-label="纯色填充颜色">
+            <button id="addColorBtn" type="button">纯色填充</button>
+          </div>
           <div id="fabricList" class="fabric-grid" aria-label="预设面料"></div>
           <label class="upload-control">
-            <input id="fabricUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
-            <span>上传本地面料</span>
+            <input id="fabricUpload" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+            <span>批量上传面料</span>
           </label>
+          </div>
         </section>
       </aside>
 
@@ -67,24 +78,56 @@
 
       <aside class="sidebar rightbar">
         <section class="panel">
-          <div class="panel-title">当前方案</div>
-          <dl class="meta-list">
-            <div><dt>模板</dt><dd id="metaGarment">-</dd></div>
-            <div><dt>区域</dt><dd id="metaRegion">-</dd></div>
-            <div><dt>面料</dt><dd id="metaFabric">-</dd></div>
-          </dl>
+          <div class="panel-title"><span>贴图装饰</span><button class="panel-toggle" type="button" aria-label="收起贴图装饰" aria-expanded="true">⌃</button></div>
+          <div class="panel-body">
+          <div id="decalList" class="fabric-grid" aria-label="贴图"></div>
+          <label class="upload-control">
+            <input id="decalUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+            <span>上传贴图</span>
+          </label>
+          <div class="decal-actions">
+            <button id="deleteDecalBtn" type="button">删除当前贴图</button>
+          </div>
+          <div class="controls compact-controls" aria-label="贴图变换">
+            <label><span>贴图缩放</span><input id="decalScaleInput" type="range" min="0.2" max="4" step="0.01"></label>
+            <label><span>贴图旋转</span><input id="decalRotationInput" type="range" min="-180" max="180" step="1"></label>
+            <label><span>贴图横移</span><input id="decalOffsetXInput" type="range" min="-450" max="450" step="1"></label>
+            <label><span>贴图纵移</span><input id="decalOffsetYInput" type="range" min="-550" max="550" step="1"></label>
+          </div>
+          </div>
         </section>
 
         <section class="panel">
-          <div class="panel-title">本地方案</div>
+          <div class="panel-title"><span>本地方案</span><button class="panel-toggle" type="button" aria-label="收起本地方案" aria-expanded="true">⌃</button></div>
+          <div class="panel-body">
           <div class="save-row">
             <input id="schemeName" type="text" maxlength="30" placeholder="方案名称">
             <button id="saveSchemeBtn" type="button">保存</button>
           </div>
           <div id="schemeList" class="scheme-list"></div>
+          </div>
         </section>
       </aside>
     </main>
+
+    <div id="groupMenu" class="context-menu hidden"></div>
+
+    <div id="cropModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="裁剪面料">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <div>
+            <strong>选择花纹区域</strong>
+            <p id="cropFileName">拖动框选区域，确认后自动压缩。</p>
+          </div>
+          <button id="cropSkipBtn" type="button">跳过</button>
+        </div>
+        <canvas id="cropCanvas" width="760" height="520"></canvas>
+        <div class="modal-actions">
+          <button id="cropCancelBtn" type="button">取消全部</button>
+          <button id="cropConfirmBtn" class="primary" type="button">确认加入</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="./js/main.js"></script>
   </body>

@@ -33,7 +33,7 @@ export class CanvasRenderer {
     return image;
   }
 
-  async render({ garment, regionStates, fabrics }) {
+  async render({ garment, regionStates, fabrics, decals = [] }) {
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = "source-over";
@@ -47,14 +47,14 @@ export class CanvasRenderer {
       const regionState = regionStates[region.id];
       const fabric = fabrics.find((item) => item.id === regionState?.fabricId) || fabrics[0];
       if (!fabric || !regionState) continue;
-      await this.drawRegion(region.mask, fabric.src, regionState.transform);
+      await this.drawRegion(region.mask, fabric.src, regionState.transform, decals.filter((decal) => decal.regionId === region.id));
     }
 
     const lineart = await this.loadImage(garment.lineart);
     ctx.drawImage(lineart, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   }
 
-  async drawRegion(maskSrc, fabricSrc, transform) {
+  async drawRegion(maskSrc, fabricSrc, transform, decals = []) {
     const ctx = this.ctx;
     const mask = await this.loadImage(maskSrc);
     const fabric = await this.loadImage(fabricSrc);
@@ -70,6 +70,10 @@ export class CanvasRenderer {
     layerCtx.scale(transform.scale, transform.scale);
     this.drawRepeatedFabric(layerCtx, fabricSrc, fabric, transform.scale);
     layerCtx.restore();
+
+    for (const decal of decals) {
+      await this.drawDecal(layerCtx, decal);
+    }
 
     layerCtx.globalCompositeOperation = "destination-in";
     layerCtx.drawImage(mask, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -98,6 +102,26 @@ export class CanvasRenderer {
         ctx.drawImage(fabric, x, y);
       }
     }
+  }
+
+  async drawDecal(ctx, decal) {
+    const image = await this.loadImage(decal.src);
+    const size = decal.size || 180;
+    ctx.save();
+    ctx.globalAlpha = Number.isFinite(decal.opacity) ? decal.opacity : 1;
+    ctx.translate(CANVAS_WIDTH / 2 + (decal.offsetX || 0), CANVAS_HEIGHT / 2 + (decal.offsetY || 0));
+    ctx.rotate(((decal.rotation || 0) * Math.PI) / 180);
+    ctx.scale(decal.scale || 1, decal.scale || 1);
+    const aspect = image.width && image.height ? image.width / image.height : 1;
+    const width = aspect >= 1 ? size : size * aspect;
+    const height = aspect >= 1 ? size / aspect : size;
+    ctx.drawImage(image, -width / 2, -height / 2, width, height);
+    ctx.restore();
+  }
+
+  clearFabricCache(src) {
+    this.imageCache.delete(src);
+    this.patternCache.delete(src);
   }
 
   downloadPng(fileName = "fabric-design.png") {
