@@ -1,14 +1,14 @@
 import { CanvasRenderer } from "./canvas-render.js";
 import { DEFAULT_TRANSFORM, attachCanvasGestures, normalizeTransform } from "./transforms.js";
-import { loadCustomFabrics, loadFabricGroupMap, loadFabricGroups, loadSchemes, loadState, saveCustomFabrics, saveFabricGroupMap, saveFabricGroups, saveSchemes, saveState } from "./storage.js";
+import { deleteAssetBlob, getAssetBlob, loadCustomFabrics, loadFabricGroupMap, loadFabricGroups, loadSchemes, loadState, putAssetBlob, saveCustomFabrics, saveFabricGroupMap, saveFabricGroups, saveSchemes, saveState } from "./storage.js";
 import { createDiyAdapter } from "./diy-wrapper.js";
 
 const DEFAULT_GROUP = "默认";
 const FABRICS = [
-  { id: "write", name: "白色", src: "./assets/fabrics/write.svg", group: DEFAULT_GROUP },
+  { id: "write", name: "白色", src: "./assets/fabrics/write.svg", group: DEFAULT_GROUP }
 ];
 const PRESET_DECALS = [
-  { id: "long", name: "龙", src: "./assets/decals/long.svg" },
+  { id: "long", name: "龙", src: "./assets/decals/long.svg" }
 ];
 
 const els = {
@@ -29,6 +29,7 @@ let fabricGroups = ensureDefaultGroup(loadFabricGroups());
 let activeFabricGroup = fabricGroups[0];
 let fabricGroupMap = loadFabricGroupMap();
 let customFabrics = loadCustomFabrics().map((fabric) => ({ ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }));
+let objectUrls = new Map();
 let presetFabrics = FABRICS.map((fabric) => ({ ...fabric, group: fabricGroupMap[fabric.id] || fabric.group || DEFAULT_GROUP }));
 let fabrics = [...customFabrics, ...presetFabrics];
 let schemes = loadSchemes();
@@ -40,6 +41,7 @@ init();
 
 async function init() {
   garments = await fetch("./data/garments.json").then((response) => response.json());
+  await hydrateCustomFabricSources();
   state = mergeInitialState(loadState());
   renderGarmentList(); renderFabricGroups(); renderFabricList(); renderRegions(); renderDecals(); renderSchemes(); bindEvents();
   await draw();
@@ -57,6 +59,54 @@ function mergeInitialState(saved) {
   }
   if (!next.decals.some((decal) => decal.id === next.activeDecalId)) next.activeDecalId = next.decals[0]?.id || null;
   return next;
+}
+
+
+async function hydrateCustomFabricSources() {
+  let changed = false;
+  for (const fabric of customFabrics) {
+    if (fabric.assetKey && !fabric.src) {
+      const blob = await getAssetBlob(fabric.assetKey);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        objectUrls.set(fabric.assetKey, url);
+        fabric.src = url;
+      }
+    } else if (fabric.src?.startsWith("data:image/") && fabric.kind === "image") {
+      const assetKey = `fabric-${fabric.id}`;
+      const blob = dataUrlToBlob(fabric.src);
+      await putAssetBlob(assetKey, blob);
+      fabric.assetKey = assetKey;
+      fabric.src = URL.createObjectURL(blob);
+      objectUrls.set(assetKey, fabric.src);
+      changed = true;
+    }
+  }
+  if (changed) saveCustomFabrics(stripRuntimeFabricData(customFabrics));
+  fabrics = [...customFabrics, ...presetFabrics];
+}
+
+function stripRuntimeFabricData(items) {
+  return items.map(({ src, ...fabric }) => {
+    if (!fabric.assetKey && src) return { ...fabric, src };
+    return fabric;
+  });
+}
+
+function revokeFabricUrl(fabric) {
+  if (!fabric.assetKey) return;
+  const url = objectUrls.get(fabric.assetKey);
+  if (url) URL.revokeObjectURL(url);
+  objectUrls.delete(fabric.assetKey);
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, body] = dataUrl.split(",");
+  const mime = /data:(.*?);base64/.exec(header)?.[1] || "application/octet-stream";
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 
 function bindEvents() {
@@ -189,7 +239,7 @@ function moveFabricToGroup(fabric, group) {
   if (fabric.custom) {
     const target = customFabrics.find((item) => item.id === fabric.id);
     if (target) target.group = group;
-    saveCustomFabrics(customFabrics);
+    saveCustomFabrics(stripRuntimeFabricData(customFabrics));
   } else {
     fabricGroupMap[fabric.id] = group;
     saveFabricGroupMap(fabricGroupMap);
@@ -214,13 +264,20 @@ function addDecal(source) {
 
 function handleDecalUpload(event) {
   const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
-  const reader = new FileReader(); reader.onload = () => { const image = new Image(); image.onload = () => addDecal({ name: file.name.replace(/\.[^.]+$/, ""), src: exportImage(image, 512) }); image.src = String(reader.result); }; reader.readAsDataURL(file);
+  const reader = new FileReader(); reader.onload = () => { const image = new Image(); image.onload = () => addDecal({ name: file.name.replace(/\.[^.]+$/, ""), src: exportImage(image, 320) }); image.src = String(reader.result); }; reader.readAsDataURL(file);
 }
 
 function deleteActiveDecal() { const decal = getActiveDecal(); if (!decal) return; state.decals = state.decals.filter((item) => item.id !== decal.id); state.activeDecalId = state.decals[0]?.id || null; renderer.clearFabricCache(decal.src); syncDecalControls(); persistAndDraw(); }
 function syncDecalControls() { const decal = getActiveDecal(); const disabled = !decal; for (const input of [els.decalScaleInput, els.decalRotationInput, els.decalOffsetXInput, els.decalOffsetYInput]) input.disabled = disabled; els.deleteDecalBtn.disabled = disabled; els.decalScaleInput.value = decal?.scale ?? 1; els.decalRotationInput.value = decal?.rotation ?? 0; els.decalOffsetXInput.value = decal?.offsetX ?? 0; els.decalOffsetYInput.value = decal?.offsetY ?? 0; }
 
 function renderSchemes() {
+  let compacted = false;
+  schemes = schemes.map((scheme) => {
+    if (!scheme.customFabrics?.some?.((fabric) => fabric.src?.startsWith?.("data:image/"))) return scheme;
+    compacted = true;
+    return { ...scheme, customFabrics: stripRuntimeFabricData(scheme.customFabrics) };
+  });
+  if (compacted) saveSchemes(schemes);
   els.schemeList.innerHTML = ""; if (!schemes.length) { const empty = document.createElement("p"); empty.textContent = "暂无已保存方案。"; els.schemeList.append(empty); return; }
   schemes.forEach((scheme, index) => { const row = document.createElement("div"); row.className = "scheme-item"; row.innerHTML = `<span>${scheme.name}</span>`;
     const loadBtn = document.createElement("button"); loadBtn.type = "button"; loadBtn.textContent = "载入"; loadBtn.addEventListener("click", () => { mergeSchemeFabrics(scheme.customFabrics || []); state = mergeInitialState(scheme.state); renderGarmentList(); renderRegions(); renderFabricGroups(); renderFabricList(); syncDecalControls(); persistAndDraw(); });
@@ -229,14 +286,14 @@ function renderSchemes() {
 
 function syncControls() { const t = getActiveTransform(); els.scaleInput.value = t.scale; els.rotationInput.value = t.rotation; els.offsetXInput.value = t.offsetX; els.offsetYInput.value = t.offsetY; updateMeta(); }
 function updateMeta() { const garment = getActiveGarment(), region = getActiveRegion(), fabric = fabrics.find((item) => item.id === getActiveRegionState()?.fabricId); els.statusText.textContent = `${garment?.name || "-"} / ${region?.name || "-"} / ${fabric?.name || "-"}`; }
-function saveCurrentScheme() { const name = els.schemeName.value.trim() || `方案 ${schemes.length + 1}`; schemes.unshift({ id: randomId(), name, state: cloneData(state), customFabrics: cloneData(customFabrics), createdAt: new Date().toISOString() }); schemes = schemes.slice(0, 12); saveSchemes(schemes); els.schemeName.value = ""; renderSchemes(); }
+function saveCurrentScheme() { const name = els.schemeName.value.trim() || `方案 ${schemes.length + 1}`; schemes.unshift({ id: randomId(), name, state: cloneData(state), customFabrics: cloneData(stripRuntimeFabricData(customFabrics)), createdAt: new Date().toISOString() }); schemes = schemes.slice(0, 12); saveSchemes(schemes); els.schemeName.value = ""; renderSchemes(); }
 
 function handleFabricUpload(event) { const files = [...(event.target.files || [])].filter((file) => file.type.startsWith("image/")); event.target.value = ""; if (!files.length) return; uploadQueue = files; openNextCrop(); }
 function addSolidColorFabric() { const color = els.solidColorInput.value || "#2f7d4a"; addCustomFabric({ id: `color-${Date.now()}`, name: `纯色 ${color.toUpperCase()}`, src: makeSolidColorSvg(color), custom: true, kind: "color", group: activeFabricGroup }); }
-function addCustomFabric(fabric) { customFabrics = [{ ...fabric, custom: true, group: fabric.group || activeFabricGroup }, ...customFabrics].slice(0, 60); saveCustomFabrics(customFabrics); fabrics = [...customFabrics, ...presetFabrics]; setFabricForActiveRegion(customFabrics[0].id); renderFabricList(); }
-function deleteCustomFabric(fabricId) { const removed = customFabrics.find((fabric) => fabric.id === fabricId); customFabrics = customFabrics.filter((fabric) => fabric.id !== fabricId); saveCustomFabrics(customFabrics); fabrics = [...customFabrics, ...presetFabrics]; if (removed) renderer.clearFabricCache(removed.src); for (const regionState of Object.values(state.regionStates)) if (regionState.fabricId === fabricId) regionState.fabricId = fabrics[0].id; renderFabricList(); persistAndDraw(); }
+function addCustomFabric(fabric) { customFabrics = [{ ...fabric, custom: true, group: fabric.group || activeFabricGroup }, ...customFabrics].slice(0, 60); saveCustomFabrics(stripRuntimeFabricData(customFabrics)); fabrics = [...customFabrics, ...presetFabrics]; setFabricForActiveRegion(customFabrics[0].id); renderFabricList(); }
+async function deleteCustomFabric(fabricId) { const removed = customFabrics.find((fabric) => fabric.id === fabricId); customFabrics = customFabrics.filter((fabric) => fabric.id !== fabricId); saveCustomFabrics(stripRuntimeFabricData(customFabrics)); fabrics = [...customFabrics, ...presetFabrics]; if (removed) { renderer.clearFabricCache(removed.src); revokeFabricUrl(removed); if (removed.assetKey) await deleteAssetBlob(removed.assetKey); } for (const regionState of Object.values(state.regionStates)) if (regionState.fabricId === fabricId) regionState.fabricId = fabrics[0].id; renderFabricList(); persistAndDraw(); }
 
-function openNextCrop() { const file = uploadQueue.shift(); if (!file) { cropSession = null; els.cropModal.classList.add("hidden"); return; } const reader = new FileReader(); reader.onload = () => { const image = new Image(); image.onload = () => { cropSession = createCropSession(file, image); els.cropFileName.textContent = file.name; els.cropModal.classList.remove("hidden"); drawCropCanvas(); }; image.src = String(reader.result); }; reader.readAsDataURL(file); }
+function openNextCrop() { const file = uploadQueue.shift(); if (!file) { cropSession = null; els.cropModal.classList.add("hidden"); return; } const image = new Image(); const objectUrl = URL.createObjectURL(file); image.onload = () => { URL.revokeObjectURL(objectUrl); cropSession = createCropSession(file, image); els.cropFileName.textContent = file.name; els.cropModal.classList.remove("hidden"); drawCropCanvas(); }; image.src = objectUrl; }
 function createCropSession(file, image) { const imageAspect = image.width / image.height, canvasAspect = els.cropCanvas.width / els.cropCanvas.height; let drawW = els.cropCanvas.width, drawH = els.cropCanvas.height; if (imageAspect > canvasAspect) drawH = drawW / imageAspect; else drawW = drawH * imageAspect; const drawX = (els.cropCanvas.width - drawW) / 2, drawY = (els.cropCanvas.height - drawH) / 2, side = Math.min(drawW, drawH) * 0.62; return { file, image, imageRect: { x: drawX, y: drawY, width: drawW, height: drawH }, crop: { x: drawX + (drawW - side) / 2, y: drawY + (drawH - side) / 2, width: side, height: side }, drag: null }; }
 function drawCropCanvas() { if (!cropSession) return; const ctx = els.cropCanvas.getContext("2d"), { image, imageRect, crop } = cropSession; ctx.clearRect(0, 0, els.cropCanvas.width, els.cropCanvas.height); ctx.fillStyle = "#252b2d"; ctx.fillRect(0, 0, els.cropCanvas.width, els.cropCanvas.height); ctx.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height); ctx.fillStyle = "rgba(0, 0, 0, 0.48)"; ctx.fillRect(0, 0, els.cropCanvas.width, els.cropCanvas.height); ctx.save(); ctx.beginPath(); ctx.rect(crop.x, crop.y, crop.width, crop.height); ctx.clip(); ctx.drawImage(image, imageRect.x, imageRect.y, imageRect.width, imageRect.height); ctx.restore(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3; ctx.strokeRect(crop.x, crop.y, crop.width, crop.height); ctx.fillStyle = "#ffffff"; for (const h of getCropHandles(crop)) ctx.fillRect(h.x - 5, h.y - 5, 10, 10); }
 function attachCropGestures() { let pointerId = null; els.cropCanvas.addEventListener("pointerdown", (event) => { if (!cropSession) return; pointerId = event.pointerId; els.cropCanvas.setPointerCapture(pointerId); const point = getCropPoint(event); cropSession.drag = { mode: pickCropHandle(point, cropSession.crop), start: point, crop: { ...cropSession.crop } }; }); els.cropCanvas.addEventListener("pointermove", (event) => { if (!cropSession?.drag || event.pointerId !== pointerId) return; updateCrop(getCropPoint(event)); drawCropCanvas(); }); els.cropCanvas.addEventListener("pointerup", endCropDrag); els.cropCanvas.addEventListener("pointercancel", endCropDrag); function endCropDrag(event) { if (event.pointerId !== pointerId || !cropSession) return; cropSession.drag = null; pointerId = null; } }
@@ -245,16 +302,17 @@ function pickCropHandle(point, crop) { for (const h of getCropHandles(crop)) if 
 function getCropHandles(crop) { return [{ name: "nw", x: crop.x, y: crop.y }, { name: "ne", x: crop.x + crop.width, y: crop.y }, { name: "sw", x: crop.x, y: crop.y + crop.height }, { name: "se", x: crop.x + crop.width, y: crop.y + crop.height }]; }
 function updateCrop(point) { const { drag, imageRect } = cropSession, dx = point.x - drag.start.x, dy = point.y - drag.start.y; let crop = { ...drag.crop }; if (drag.mode === "move") { crop.x += dx; crop.y += dy; } else { if (drag.mode.includes("w")) { crop.x += dx; crop.width -= dx; } if (drag.mode.includes("e")) crop.width += dx; if (drag.mode.includes("n")) { crop.y += dy; crop.height -= dy; } if (drag.mode.includes("s")) crop.height += dy; } cropSession.crop = constrainCrop(crop, imageRect); }
 function constrainCrop(crop, bounds) { const minSize = 40; if (crop.width < minSize) crop.width = minSize; if (crop.height < minSize) crop.height = minSize; crop.x = Math.min(Math.max(crop.x, bounds.x), bounds.x + bounds.width - crop.width); crop.y = Math.min(Math.max(crop.y, bounds.y), bounds.y + bounds.height - crop.height); crop.width = Math.min(crop.width, bounds.x + bounds.width - crop.x); crop.height = Math.min(crop.height, bounds.y + bounds.height - crop.y); return crop; }
-function confirmCrop() { if (!cropSession) return; const { image, imageRect, crop, file } = cropSession; const source = { x: ((crop.x - imageRect.x) / imageRect.width) * image.width, y: ((crop.y - imageRect.y) / imageRect.height) * image.height, width: (crop.width / imageRect.width) * image.width, height: (crop.height / imageRect.height) * image.height }; addCustomFabric({ id: `upload-${Date.now()}-${Math.round(Math.random() * 10000)}`, name: file.name.replace(/\.[^.]+$/, ""), src: exportCroppedImage(image, source), custom: true, kind: "image", group: activeFabricGroup }); openNextCrop(); }
-function exportCroppedImage(image, source) { const maxSize = 768, scale = Math.min(1, maxSize / Math.max(source.width, source.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(64, Math.round(source.width * scale)); canvas.height = Math.max(64, Math.round(source.height * scale)); const ctx = canvas.getContext("2d"); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, canvas.width, canvas.height); return canvas.toDataURL("image/webp", 0.82); }
-function exportImage(image, maxSize) { const scale = Math.min(1, maxSize / Math.max(image.width, image.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(64, Math.round(image.width * scale)); canvas.height = Math.max(64, Math.round(image.height * scale)); canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height); return canvas.toDataURL("image/webp", 0.86); }
+async function confirmCrop() { if (!cropSession) return; const { image, imageRect, crop, file } = cropSession; const source = { x: ((crop.x - imageRect.x) / imageRect.width) * image.width, y: ((crop.y - imageRect.y) / imageRect.height) * image.height, width: (crop.width / imageRect.width) * image.width, height: (crop.height / imageRect.height) * image.height }; const id = `upload-${Date.now()}-${Math.round(Math.random() * 10000)}`; const assetKey = `fabric-${id}`; const blob = await exportCroppedBlob(image, source); await putAssetBlob(assetKey, blob); const src = URL.createObjectURL(blob); objectUrls.set(assetKey, src); addCustomFabric({ id, name: file.name.replace(/\.[^.]+$/, ""), src, assetKey, custom: true, kind: "image", group: activeFabricGroup }); openNextCrop(); }
+async function exportCroppedBlob(image, source) { const maxSize = 512, scale = Math.min(1, maxSize / Math.max(source.width, source.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(64, Math.round(source.width * scale)); canvas.height = Math.max(64, Math.round(source.height * scale)); const ctx = canvas.getContext("2d"); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, canvas.width, canvas.height); return canvasToBlob(canvas, "image/webp", 0.78); }
+function canvasToBlob(canvas, type, quality) { return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), type, quality)); }
+function exportImage(image, maxSize) { const scale = Math.min(1, maxSize / Math.max(image.width, image.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(64, Math.round(image.width * scale)); canvas.height = Math.max(64, Math.round(image.height * scale)); canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height); return canvas.toDataURL("image/webp", 0.72); }
 function skipCrop() { openNextCrop(); }
 function cancelCropQueue() { uploadQueue = []; cropSession = null; els.cropModal.classList.add("hidden"); }
 function makeSolidColorSvg(color) { return makeSvgData(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><rect width="96" height="96" fill="${color}"/></svg>`); }
 function makeSvgData(svg) { return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; }
 function cloneData(value) { return typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value)); }
 function randomId() { return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()); }
-function mergeSchemeFabrics(nextCustomFabrics) { const byId = new Map(customFabrics.map((fabric) => [fabric.id, { ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }])); for (const fabric of nextCustomFabrics) byId.set(fabric.id, { ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }); customFabrics = [...byId.values()].slice(0, 60); saveCustomFabrics(customFabrics); fabrics = [...customFabrics, ...presetFabrics]; }
+function mergeSchemeFabrics(nextCustomFabrics) { const byId = new Map(customFabrics.map((fabric) => [fabric.id, { ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }])); for (const fabric of nextCustomFabrics) byId.set(fabric.id, { ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }); customFabrics = [...byId.values()].slice(0, 60); saveCustomFabrics(stripRuntimeFabricData(customFabrics)); fabrics = [...customFabrics, ...presetFabrics]; }
 function ensureDefaultGroup(groups) { const clean = Array.isArray(groups) ? groups.filter(Boolean) : []; return clean.includes(DEFAULT_GROUP) ? clean : [DEFAULT_GROUP, ...clean]; }
 function persistAndDraw() { saveState(state); queueDraw(); }
 function queueDraw() { needsRedraw = true; if (drawQueued) return; drawQueued = true; requestAnimationFrame(async () => { drawQueued = false; if (drawRunning) return; drawRunning = true; while (needsRedraw) { needsRedraw = false; await draw(); } drawRunning = false; }); }
