@@ -37,7 +37,8 @@ export function attachCanvasGestures(canvas, getTransform, setTransform) {
   canvas.addEventListener("pointermove", (event) => {
     if (!start || event.pointerId !== pointerId) return;
     const current = getTransform();
-    const ratio = canvas.width / canvas.getBoundingClientRect().width;
+    const designWidth = Number(canvas.dataset.designWidth) || canvas.width;
+    const ratio = designWidth / canvas.getBoundingClientRect().width;
     setTransform({
       ...current,
       offsetX: start.offsetX + (event.clientX - start.x) * ratio,

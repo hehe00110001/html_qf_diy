@@ -5,11 +5,9 @@ import { createDiyAdapter } from "./diy-wrapper.js";
 
 const DEFAULT_GROUP = "默认";
 const FABRICS = [
-  { id: "write", name: "白色", src: "./assets/fabrics/write.svg", group: DEFAULT_GROUP }
-];
+  { id: "write", name: "白色", src: "./assets/fabrics/write.svg", group: DEFAULT_GROUP }];
 const PRESET_DECALS = [
-  { id: "long", name: "龙", src: "./assets/decals/long.svg" }
-];
+  { id: "long", name: "龙", src: "./assets/decals/long.svg" }];
 
 const els = {
   canvas: document.querySelector("#designCanvas"), garmentList: document.querySelector("#garmentList"), regionList: document.querySelector("#regionList"),
@@ -40,7 +38,7 @@ let uploadQueue = [], cropSession = null, longPressTimer = null;
 init();
 
 async function init() {
-  garments = await fetch("./data/garments.json").then((response) => response.json());
+  garments = (await fetch("./data/garments.json").then((response) => response.json())).map((garment, index) => ({ ...garment, _key: `${garment.id || "garment"}-${index}` }));
   await hydrateCustomFabricSources();
   state = mergeInitialState(loadState());
   renderGarmentList(); renderFabricGroups(); renderFabricList(); renderRegions(); renderDecals(); renderSchemes(); bindEvents();
@@ -49,9 +47,9 @@ async function init() {
 }
 
 function mergeInitialState(saved) {
-  const garment = garments.find((item) => item.id === saved?.garmentId) || garments[0];
+  const garment = garments.find((item) => item._key === saved?.garmentKey) || garments.find((item) => item.id === saved?.garmentId) || garments[0];
   const activeRegionId = garment.regions.some((region) => region.id === saved?.activeRegionId) ? saved.activeRegionId : garment.regions[0].id;
-  const next = { garmentId: garment.id, activeRegionId, regionStates: {}, decals: Array.isArray(saved?.decals) ? saved.decals : [], activeDecalId: saved?.activeDecalId || null };
+  const next = { garmentId: garment.id, garmentKey: garment._key, activeRegionId, regionStates: {}, decals: Array.isArray(saved?.decals) ? saved.decals : [], activeDecalId: saved?.activeDecalId || null };
   for (const item of garments) for (const region of item.regions) {
     const savedRegion = saved?.regionStates?.[region.id];
     const savedFabricExists = fabrics.some((fabric) => fabric.id === savedRegion?.fabricId);
@@ -64,14 +62,17 @@ function mergeInitialState(saved) {
 
 async function hydrateCustomFabricSources() {
   let changed = false;
+  const hydrated = [];
   for (const fabric of customFabrics) {
     if (fabric.assetKey && !fabric.src) {
       const blob = await getAssetBlob(fabric.assetKey);
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        objectUrls.set(fabric.assetKey, url);
-        fabric.src = url;
+      if (!blob) {
+        changed = true;
+        continue;
       }
+      const url = URL.createObjectURL(blob);
+      objectUrls.set(fabric.assetKey, url);
+      fabric.src = url;
     } else if (fabric.src?.startsWith("data:image/") && fabric.kind === "image") {
       const assetKey = `fabric-${fabric.id}`;
       const blob = dataUrlToBlob(fabric.src);
@@ -81,7 +82,10 @@ async function hydrateCustomFabricSources() {
       objectUrls.set(assetKey, fabric.src);
       changed = true;
     }
+    if (fabric.src) hydrated.push(fabric);
+    else changed = true;
   }
+  customFabrics = hydrated;
   if (changed) saveCustomFabrics(stripRuntimeFabricData(customFabrics));
   fabrics = [...customFabrics, ...presetFabrics];
 }
@@ -125,9 +129,15 @@ function bindEvents() {
   els.decalOffsetYInput.addEventListener("input", () => patchActiveDecal({ offsetY: Number(els.decalOffsetYInput.value) }));
   els.cropConfirmBtn.addEventListener("click", confirmCrop); els.cropCancelBtn.addEventListener("click", cancelCropQueue); els.cropSkipBtn.addEventListener("click", skipCrop);
   document.addEventListener("click", () => els.groupMenu.classList.add("hidden"));
-  attachCropGestures(); bindPanelToggles(); els.saveSchemeBtn.addEventListener("click", saveCurrentScheme);
+  attachCropGestures(); bindPanelToggles(); window.addEventListener("resize", handleViewportChange); els.saveSchemeBtn.addEventListener("click", saveCurrentScheme);
 }
 
+
+
+function handleViewportChange() {
+  renderer.clearRegionCache();
+  queueDraw();
+}
 
 function bindPanelToggles() {
   document.querySelectorAll(".panel-toggle").forEach((button) => {
@@ -139,7 +149,7 @@ function bindPanelToggles() {
   });
 }
 
-function getActiveGarment() { return garments.find((item) => item.id === state.garmentId) || garments[0]; }
+function getActiveGarment() { return garments.find((item) => item._key === state.garmentKey) || garments.find((item) => item.id === state.garmentId) || garments[0]; }
 function getActiveRegion() { return getActiveGarment().regions.find((item) => item.id === state.activeRegionId) || getActiveGarment().regions[0]; }
 function getActiveRegionState() { return state.regionStates[state.activeRegionId]; }
 function getActiveTransform() { return getActiveRegionState().transform; }
@@ -152,9 +162,34 @@ function patchActiveDecal(patch) { const decal = getActiveDecal(); if (!decal) r
 function renderGarmentList() {
   els.garmentList.innerHTML = "";
   for (const garment of garments) {
-    const button = document.createElement("button"); button.className = `tile${garment.id === state.garmentId ? " active" : ""}`; button.type = "button"; button.innerHTML = `<img src="${garment.thumbnail}" alt=""><span>${garment.name}</span>`;
-    button.addEventListener("click", () => { state.garmentId = garment.id; state.activeRegionId = garment.regions[0].id; renderGarmentList(); renderRegions(); persistAndDraw(); });
+    const button = document.createElement("button"); button.className = `tile${garment._key === state.garmentKey ? " active" : ""}`; button.type = "button"; button.innerHTML = `<img src="${garment.thumbnail}" alt=""><span>${garment.name}</span>`;
+    button.addEventListener("click", () => switchGarment(garment));
     els.garmentList.append(button);
+  }
+}
+
+
+function switchGarment(garment) {
+  state.garmentId = garment.id;
+  state.garmentKey = garment._key;
+  state.activeRegionId = garment.regions[0].id;
+  ensureRegionStates(garment);
+  renderer.clearRegionCache();
+  renderGarmentList();
+  renderRegions();
+  renderFabricList();
+  syncDecalControls();
+  persistAndDraw();
+}
+
+function ensureRegionStates(garment) {
+  for (const region of garment.regions) {
+    if (!state.regionStates[region.id]) {
+      state.regionStates[region.id] = {
+        fabricId: fabrics[0].id,
+        transform: normalizeTransform(DEFAULT_TRANSFORM)
+      };
+    }
   }
 }
 
@@ -280,7 +315,7 @@ function renderSchemes() {
   if (compacted) saveSchemes(schemes);
   els.schemeList.innerHTML = ""; if (!schemes.length) { const empty = document.createElement("p"); empty.textContent = "暂无已保存方案。"; els.schemeList.append(empty); return; }
   schemes.forEach((scheme, index) => { const row = document.createElement("div"); row.className = "scheme-item"; row.innerHTML = `<span>${scheme.name}</span>`;
-    const loadBtn = document.createElement("button"); loadBtn.type = "button"; loadBtn.textContent = "载入"; loadBtn.addEventListener("click", () => { mergeSchemeFabrics(scheme.customFabrics || []); state = mergeInitialState(scheme.state); renderGarmentList(); renderRegions(); renderFabricGroups(); renderFabricList(); syncDecalControls(); persistAndDraw(); });
+    const loadBtn = document.createElement("button"); loadBtn.type = "button"; loadBtn.textContent = "载入"; loadBtn.addEventListener("click", () => { mergeSchemeFabrics(scheme.customFabrics || []); state = mergeInitialState(scheme.state); renderer.clearRegionCache(); renderGarmentList(); renderRegions(); renderFabricGroups(); renderFabricList(); syncDecalControls(); persistAndDraw(); });
     const deleteBtn = document.createElement("button"); deleteBtn.type = "button"; deleteBtn.textContent = "删除"; deleteBtn.addEventListener("click", () => { schemes.splice(index, 1); saveSchemes(schemes); renderSchemes(); }); row.append(loadBtn, deleteBtn); els.schemeList.append(row); });
 }
 
@@ -315,5 +350,6 @@ function randomId() { return globalThis.crypto?.randomUUID ? globalThis.crypto.r
 function mergeSchemeFabrics(nextCustomFabrics) { const byId = new Map(customFabrics.map((fabric) => [fabric.id, { ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }])); for (const fabric of nextCustomFabrics) byId.set(fabric.id, { ...fabric, custom: true, group: fabric.group || DEFAULT_GROUP }); customFabrics = [...byId.values()].slice(0, 60); saveCustomFabrics(stripRuntimeFabricData(customFabrics)); fabrics = [...customFabrics, ...presetFabrics]; }
 function ensureDefaultGroup(groups) { const clean = Array.isArray(groups) ? groups.filter(Boolean) : []; return clean.includes(DEFAULT_GROUP) ? clean : [DEFAULT_GROUP, ...clean]; }
 function persistAndDraw() { saveState(state); queueDraw(); }
-function queueDraw() { needsRedraw = true; if (drawQueued) return; drawQueued = true; requestAnimationFrame(async () => { drawQueued = false; if (drawRunning) return; drawRunning = true; while (needsRedraw) { needsRedraw = false; await draw(); } drawRunning = false; }); }
+function queueDraw() { needsRedraw = true; if (drawRunning || drawQueued) return; drawQueued = true; requestAnimationFrame(processDrawQueue); }
+async function processDrawQueue() { drawQueued = false; if (drawRunning) return; drawRunning = true; try { while (needsRedraw) { needsRedraw = false; await draw(); } } catch (error) { console.error(error); } finally { drawRunning = false; if (needsRedraw) queueDraw(); } }
 async function draw() { syncControls(); syncDecalControls(); await renderer.render({ garment: getActiveGarment(), regionStates: state.regionStates, fabrics, decals: state.decals }); }

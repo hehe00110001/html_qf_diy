@@ -19,5 +19,29 @@
       { "id": "baidie-yibai2", "name": "衣摆2", "mask": "./assets/garments/baidie/mask-bai2.svg"}
 
     ]
+  },
+  {
+    "id": "duilian",
+    "name": "对联",
+    "lineart": "./assets/garments/duilian/lineart.svg",
+    "thumbnail": "./assets/garments/duilian/lineart.svg",
+    "regions": [
+      { "id": "duilian-zuoxiu1", "name": "袖子左1", "mask": "./assets/garments/duilian/mask-zuoxiu1.svg" },
+      { "id": "duilian-zuoxiu2", "name": "袖子左2", "mask": "./assets/garments/duilian/mask-zuoxiu2.svg" },
+      { "id": "duilian-zuoxiu3", "name": "袖子左3", "mask": "./assets/garments/duilian/mask-zuoxiu3.svg" },
+      { "id": "duilian-zuoxiu4", "name": "袖子左4", "mask": "./assets/garments/duilian/mask-zuoxiu4.svg" },
+      { "id": "duilian-youxiu1", "name": "袖子右1", "mask": "./assets/garments/duilian/mask-youxiu1.svg" },
+      { "id": "duilian-youxiu2", "name": "袖子右2", "mask": "./assets/garments/duilian/mask-youxiu2.svg" },
+      { "id": "duilian-youxiu3", "name": "袖子右3", "mask": "./assets/garments/duilian/mask-youxiu3.svg" },
+      { "id": "duilian-youxiu4", "name": "袖子右4", "mask": "./assets/garments/duilian/mask-youxiu4.svg" },
+      { "id": "duilian-yibai1", "name": "上衣左", "mask": "./assets/garments/duilian/mask-yibai1.svg" },
+      { "id": "duilian-yibai2", "name": "上衣中", "mask": "./assets/garments/duilian/mask-yibai2.svg" },
+      { "id": "duilian-yibai3", "name": "上衣右", "mask": "./assets/garments/duilian/mask-yibai3.svg" },
+      { "id": "duilian-yibai4", "name": "下摆", "mask": "./assets/garments/duilian/mask-yibai4.svg" },
+      { "id": "duilian-zuoling1", "name": "左领1", "mask": "./assets/garments/duilian/mask-zuoling1.svg" },
+      { "id": "duilian-zuoling2", "name": "左领2", "mask": "./assets/garments/duilian/mask-zuoling2.svg" },
+      { "id": "duilian-youling1", "name": "右领1", "mask": "./assets/garments/duilian/mask-youling1.svg" },
+      { "id": "duilian-youling2", "name": "右领2", "mask": "./assets/garments/duilian/mask-youling2.svg" }
+    ]
   }
 ]
