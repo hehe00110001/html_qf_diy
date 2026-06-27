@@ -43,5 +43,28 @@
       { "id": "duilian-youling1", "name": "右领1", "mask": "./assets/garments/duilian/mask-youling1.svg" },
       { "id": "duilian-youling2", "name": "右领2", "mask": "./assets/garments/duilian/mask-youling2.svg" }
     ]
+  },
+    {
+    "id": "muer",
+    "name": "木耳",
+    "lineart": "./assets/garments/muer/lineart.svg",
+    "thumbnail": "./assets/garments/muer/lineart.svg",
+    "regions": [
+      { "id": "muer-zuoxiu1", "name": "花边左1", "mask": "./assets/garments/muer/mask-zuohuabian1.svg" },
+      { "id": "muer-zuoxiu2", "name": "花边左2", "mask": "./assets/garments/muer/mask-zuohuabian2.svg" },
+      { "id": "muer-zuoxiu3", "name": "左袖", "mask": "./assets/garments/muer/mask-zuoxiu.svg" },
+      { "id": "muer-youxiu1", "name": "花边右1", "mask": "./assets/garments/muer/mask-youhuabian1.svg" },
+      { "id": "muer-youxiu2", "name": "花边右2", "mask": "./assets/garments/muer/mask-youhuabian2.svg" },
+      { "id": "muer-youxiu3", "name": "右袖", "mask": "./assets/garments/muer/mask-youxiu.svg" },
+      { "id": "muer-huabian1", "name": "正花边1", "mask": "./assets/garments/muer/mask-zhenghuabian1.svg" },
+      { "id": "muer-huabian2", "name": "正花边2", "mask": "./assets/garments/muer/mask-zhenghuabian2.svg" },
+      { "id": "muer-shangyisuobian", "name": "正锁边", "mask": "./assets/garments/muer/mask-zhengsuobian.svg" },
+      { "id": "muer-zuoyi", "name": "上衣左", "mask": "./assets/garments/muer/mask-zuoyi.svg" },
+      { "id": "muer-youyi", "name": "上衣右", "mask": "./assets/garments/muer/mask-youyi.svg" },
+      { "id": "muer-zuoling1", "name": "左领1", "mask": "./assets/garments/muer/mask-zuoling1.svg" },
+      { "id": "muer-zuoling2", "name": "左领2", "mask": "./assets/garments/muer/mask-zuoling2.svg" },
+      { "id": "muer-youling1", "name": "右领1", "mask": "./assets/garments/muer/mask-youling1.svg" },
+      { "id": "muer-youling2", "name": "右领2", "mask": "./assets/garments/muer/mask-youling2.svg" }
+    ]
   }
 ]
