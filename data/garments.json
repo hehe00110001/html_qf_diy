@@ -66,5 +66,23 @@
       { "id": "muer-youling1", "name": "右领1", "mask": "./assets/garments/muer/mask-youling1.svg" },
       { "id": "muer-youling2", "name": "右领2", "mask": "./assets/garments/muer/mask-youling2.svg" }
     ]
+  },
+  {
+    "id": "tanglang",
+    "name": "螳螂",
+    "lineart": "./assets/garments/tanglang/lineart.svg",
+    "thumbnail": "./assets/garments/tanglang/lineart.svg",
+    "regions": [
+      { "id": "tanglang-zuoxiu", "name": "左袖", "mask": "./assets/garments/tanglang/zuoxiu.svg" },
+      { "id": "tanglang-zuoxiuzibian", "name": "左袖子边", "mask": "./assets/garments/tanglang/zuoxiuzibian.svg" },
+      { "id": "tanglang-youxiu", "name": "右袖", "mask": "./assets/garments/tanglang/youxiu.svg" },
+      { "id": "tanglang-youxiuzibian", "name": "右袖子边", "mask": "./assets/garments/tanglang/youxiuzibian.svg" },
+      { "id": "tanglang-shangyidibu", "name": "上衣底布", "mask": "./assets/garments/tanglang/dibu.svg" },
+      { "id": "tanglang-dasanjiao", "name": "大三角片", "mask": "./assets/garments/tanglang/dasanjiao.svg" },
+      { "id": "tanglang-xiaosanjiao", "name": "小三角片", "mask": "./assets/garments/tanglang/xiaosanjiao.svg" },
+      { "id": "tanglang-neiling", "name": "内领", "mask": "./assets/garments/tanglang/neiling.svg" },
+      { "id": "tanglang-wailing", "name": "外领", "mask": "./assets/garments/tanglang/wailing.svg" },
+      { "id": "tanglang-xiongqianpian", "name": "胸前片", "mask": "./assets/garments/tanglang/xiongqianpian.svg" }
+    ]
   }
 ]
